@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Setup help - Azimap Cloud sample</title><link rel="stylesheet" href="/sample.css"></head>
+<body>
+<header><a class="brand" href="/">Azimap <span>customer app sample</span></a><a href="/">Back to sample</a></header>
+<main class="help">
+<p class="eyebrow">INTEGRATION GUIDE</p><h1>Your login. An Azimap map.</h1>
+<p>This sample uses ASP.NET Core, but the integration works with any backend that can make authenticated HTTP requests. Users sign in to your application. Your backend holds the API key and checks permission before requesting read sessions or single-use write tokens. Users do not need an Azimap account.</p>
+<h2>1. Configure Cloud access</h2>
+<p>Create or select an API key in Azimap Cloud. Limit it to the maps, layers and operations you need. Allow this application's browser origin and your backend's actual egress IP in the key's whitelist.</p>
+<p>Copy <code>appsettings.example.json</code> to <code>appsettings.Local.json</code> beside this sample's project. Replace the key, map ID, layer IDs and sample password. The local file is ignored by Git. Keep secrets on the server.</p>
+<pre><code>{
+  "Azimap": {
+    "IssuerBaseUrl": "https://app.azimap.com/",
+    "ApiBaseUrl": "https://api.azimap.com/",
+    "AssetBaseUrl": "https://app.azimap.com/azimap-runtime/",
+    "LayerContentApiUrl": "https://tiles.azimap.com/",
+    "ApiKey": "YOUR_SERVER_API_KEY",
+    "MapId": 123,
+    "LayerIds": [
+      456
+    ]
+  },
+  "Sample": {
+    "Username": "demo",
+    "Password": "REPLACE_WITH_YOUR_OWN_PASSWORD",
+    "AllowEditing": false,
+    "AllowExport": false
+  }
+}</code></pre>
+<p>These are the production Azimap Cloud URLs. Environment variables override file settings; use double underscores, for example <code>Azimap__ApiKey</code>.</p>
+<h2>2. Run your application</h2>
+<pre><code>dotnet run -f net10.0 --no-launch-profile --urls http://localhost:5098</code></pre>
+<p>Open <a href="http://localhost:5098">localhost:5098</a> and sign in using your configured sample account. Restart after changing settings, then sign out and sign back in to refresh grants.</p>
+<h2>3. Try sessions and editing</h2>
+<ul>
+<li>Use <strong>Renew session</strong> or leave the map open to observe automatic renewal.</li>
+<li>For editing, use a designated test layer and set <code>Sample:AllowEditing=true</code>. Your API key and map must permit the requested operations. Browser settings alone cannot grant permission.</li>
+<li>Before a supported save, the library requests a single-use write token through your authenticated backend. Your backend checks the requested layers and operations. The browser then sends the mutation directly to Azimap.</li>
+<li>Failed renewal suspends interaction and retains unsaved edits. Resolve unsaved work before reloading after a permission change.</li>
+<li>Signing out closes this map and prevents further issuance. Already-issued tokens elsewhere can remain usable until expiry or parent-key revocation.</li>
+</ul>
+<h2>Connect your own authentication</h2>
+<p>Use your existing login and live permission service. The sample's one-account login and fixed claims demonstrate the flow; they do not track subsequent permission changes. Check current permission on every issuance, including every layer and operation in a write request. Layer scope does not provide record-level authorization.</p>
+<p>The adapters expose authenticated <code>GET /azimap/csrf</code>, <code>POST /azimap/maps/{mapId}/session</code> and <code>POST /azimap/maps/{mapId}/write-token</code> in your application. Both POSTs require <code>X-CSRF-Token</code>. Initialize the map with <code>auth: Azimap.customerBackend('/azimap')</code> to handle CSRF, session renewal and supported write-token acquisition.</p>
+<p>Your backend calls <code>https://app.azimap.com/api/embed/sessions</code> and <code>https://app.azimap.com/api/embed/write-tokens</code> using its server-held API key. The browser must never receive that key. Read sessions last at most five minutes. Write tokens last at most two minutes, never outlive their read session and authorize one HTTP mutation request. Do not automatically retry uncertain writes.</p>
+<h2>Troubleshooting</h2>
+<ul>
+<li><strong>Runtime failed to load:</strong> check access to <code>https://app.azimap.com/azimap-runtime/</code> and the browser console for blocked scripts or network requests.</li>
+<li><strong>401:</strong> sign in again; if it persists, check the server-held API key.</li>
+<li><strong>403:</strong> check user permissions, key grants, map/layer IDs, browser origin and backend egress IP.</li>
+<li><strong>404:</strong> verify the issuer URL and availability of the embed session service for your Cloud integration.</li>
+<li><strong>429:</strong> wait before trying again; login and issuance have rate limits.</li>
+<li><strong>503 or network error:</strong> check connectivity to Azimap Cloud. Do not automatically resubmit an uncertain save.</li>
+</ul>
+</main>
+</body>
+</html>
