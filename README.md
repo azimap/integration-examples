@@ -1,41 +1,85 @@
-# Azimap Embed Integrations
+# Azimap Cloud Embed Integrations
 
 Embed native Azimap JavaScript maps in your application using your existing login and permissions. Your users do not need an Azimap account.
 
-This repository provides backend adapters, integration guides and a runnable sample application.
+This repository provides backend adapters, integration guides and a sample application for Azimap Cloud.
 
 ## Available integrations
 
 | Integration | Description |
 |---|---|
-| ASP.NET Core / MVC | .NET 10 adapter, with MVC and Razor integration guidance |
-| Node.js | Reference adapter using your existing authentication and CSRF services |
+| ASP.NET Core / MVC | .NET 10 adapter with MVC and Razor integration guidance |
+| Node.js | Adapter using your existing authentication and CSRF services |
 | Python | Dependency-free, synchronous WSGI adapter |
-| Sample application | ASP.NET Core application demonstrating login, map loading, renewal and editing authorization |
+| Sample application | Demonstrates login, map loading, session renewal and editing authorization |
 
-The .NET adapter targets ASP.NET Core. Classic ASP.NET MVC 5 / System.Web requires a separate bridge.
+ASP.NET Core MVC uses the same .NET adapter. Classic ASP.NET MVC 5 / System.Web requires a separate integration.
 
 ## How it works
 
 Your application keeps its permanent Azimap API key on its backend.
 
-1. A user signs in through your application.
-2. Your backend checks their permissions and requests a short-lived, read-only map session from Azimap.
+1. A user signs in to your application.
+2. Your backend checks their permissions and requests a short-lived, read-only map session from Azimap Cloud.
 3. The browser loads the map directly from Azimap.
 4. Before each supported edit, the Azimap JavaScript library requests a write token through your backend.
 5. Your backend checks the user’s current permission for the requested layer and operation.
-6. Azimap issues a scoped, single-use write token. The browser submits the edit directly to Azimap, which validates the actual operation and consumes the token.
+6. Azimap issues a scoped, single-use write token. The browser submits the edit directly to Azimap, which validates the operation and consumes the token.
 
-Your backend handles authorization requests. Map data flows directly between the browser and Azimap.
+Your backend handles authorization requests. Map data flows directly between the browser and Azimap Cloud.
 
-## Frontend setup
+## Cloud endpoints
 
-Load the Azimap embed loader and provide a map container:
+| Service | URL |
+|---|---|
+| Application and token issuer | `https://app.azimap.com/` |
+| API | `https://api.azimap.com/` |
+| Tiles and layer content | `https://tiles.azimap.com/` |
+| Embed assets | `https://app.azimap.com/azimap-runtime/` |
+
+## Getting started
+
+### 1. Configure your Azimap API key
+
+Create an Azimap API key with access to the maps, layers and operations your application needs.
+
+Configure its whitelist for:
+
+- Your application’s browser origin.
+- Your backend’s outbound IP address.
+
+Store the key securely on your backend. Never include it in frontend JavaScript, HTML, a viewmodel or a browser response.
+
+### 2. Add a backend adapter
+
+Choose the adapter for your backend and configure:
+
+- **Issuer URL:** `https://app.azimap.com/`
+- **API key:** your private Azimap API key.
+- **Authentication:** your existing application login.
+- **Authorization:** your current map, layer and operation permissions.
+- **CSRF protection:** your application’s authenticated-session protection.
+
+The adapter’s authorization callback must check permissions on every session and write-token request. Return only the map, layers and capabilities that the logged-in user is allowed to access.
+
+The adapters expose these endpoints within your application:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /azimap/csrf` | Obtain a session-bound CSRF token |
+| `POST /azimap/maps/{mapId}/session` | Authorize viewing and obtain a read session |
+| `POST /azimap/maps/{mapId}/write-token` | Authorize an edit and obtain a write token |
+
+Both POST endpoints require `X-CSRF-Token`. The browser helper handles these requests automatically.
+
+### 3. Add the map to your page
+
+Provide a map container and load the Azimap embed loader:
 
 ```html
 <div id="map" style="height: 600px"></div>
 
-<script src="https://YOUR_AZIMAP_HOST/azimap-runtime/dist/azimap-embed-loader.min.js"></script>
+<script src="https://app.azimap.com/azimap-runtime/dist/azimap-embed-loader.min.js"></script>
 ```
 
 Initialize the map:
@@ -44,42 +88,31 @@ Initialize the map:
 const map = await Azimap.init({
     target: '#map',
     mapId: 123,
-    apiBaseUrl: 'https://YOUR_AZIMAP_API/',
-    assetBaseUrl: 'https://YOUR_AZIMAP_HOST/azimap-runtime/',
+    apiBaseUrl: 'https://api.azimap.com/',
+    assetBaseUrl: 'https://app.azimap.com/azimap-runtime/',
+    layerContentApiUrl: 'https://tiles.azimap.com/',
     editable: true,
     auth: Azimap.customerBackend('/azimap')
 });
 ```
 
-Replace the example URLs and map ID with your deployment settings.
+Replace `123` with your Azimap map ID.
 
-The helper handles CSRF, read-session renewal and write-token acquisition. Setting `editable: true` requests editing controls; server-side permissions determine which operations are allowed.
+`/azimap` refers to the adapter endpoints in **your application**. The helper uses the user’s existing application session.
 
-## Backend setup
+Setting `editable: true` requests editing controls. Your backend’s permissions and the Azimap API key determine which operations are allowed. Use `editable: false` for a read-only map interface.
 
-Choose an adapter and connect it to your application’s existing authentication and permission services.
+## Authorizing edits
 
-Configure:
+You do not need to listen for editing events or classify map requests yourself. Before a supported mutation is submitted, the Azimap JavaScript library asks your backend for permission.
 
-- **Issuer URL:** your Azimap GeoAppCore endpoint.
-- **API key:** a persistent Azimap API key stored securely on your backend.
-- **Authentication:** identify the logged-in application user.
-- **Authorization:** check current map, layer and operation permissions on every token request.
-- **CSRF protection:** validate requests against the authenticated application session.
+For example:
 
-Configure the API key’s whitelist for the permitted browser origins and your backend’s outbound IP address.
-
-The adapters expose the same browser-facing contract:
-
-| Endpoint | Purpose |
-|---|---|
-| `GET /azimap/csrf` | Obtain a session-bound CSRF token |
-| `POST /azimap/maps/{mapId}/session` | Authorize viewing and obtain a read session |
-| `POST /azimap/maps/{mapId}/write-token` | Authorize an edit and obtain a write token |
-
-Both POST endpoints require `X-CSRF-Token`.
-
-A write-token request looks like:
+```http
+POST /azimap/maps/123/write-token
+Content-Type: application/json
+X-CSRF-Token: ...
+```
 
 ```json
 {
@@ -93,49 +126,95 @@ A write-token request looks like:
 }
 ```
 
-Supported operation names are `Create`, `CreateGeometry`, `Edit` and `Delete`. Treat these browser-supplied values as requests for permission, never as proof of permission.
+Your backend checks the logged-in user’s current permission for every requested layer and operation.
 
-## Security model
+| Operation | Purpose |
+|---|---|
+| `Create` | Create a feature with attributes |
+| `CreateGeometry` | Create a geometry-only feature |
+| `Edit` | Modify an existing feature or its attachments |
+| `Delete` | Remove a feature |
 
-- The permanent API key stays on your backend.
+Browser-supplied operations are requests for permission, not proof of permission. Azimap independently checks the actual mutation against the issued token.
+
+Supported edits made through the Azimap map library acquire write tokens automatically. If your application makes its own direct API mutation calls, it must perform the same authorization and token-acquisition step.
+
+## Backend integrations
+
+### ASP.NET Core / MVC
+
+Register the .NET 10 adapter alongside your existing authentication and authorization middleware.
+
+ASP.NET Core MVC applications use the same adapter alongside their controllers and Razor views.
+
+Configure these server-side settings:
+
+```text
+Azimap:IssuerBaseUrl = https://app.azimap.com/
+Azimap:ApiKey = YOUR_PRIVATE_SERVER_API_KEY
+```
+
+Connect the authorization callback to your application’s permission service. Keep the API key out of viewmodels and rendered pages.
+
+### Node.js
+
+Connect the Node adapter to your existing authentication, CSRF and permission services.
+
+Set its issuer URL to `https://app.azimap.com/` and load the API key from your server’s secret store or environment configuration.
+
+### Python
+
+The Python adapter is a synchronous WSGI callable using only the standard library.
+
+Connect its authentication, CSRF and authorization hooks to your existing application services. ASGI applications require an appropriate framework bridge.
+
+## Session renewal
+
+Read sessions renew automatically through your authenticated backend.
+
+If renewal fails, map interactions are suspended while unsaved edits are retained. Changed permissions may require the map to be reinitialized after your application resolves unsaved work.
+
+Your application should stop further issuance after logout and destroy the displayed map.
+
+## Security
+
+- The permanent API key remains on your backend.
 - Browser read sessions last at most five minutes.
 - Write tokens permit one mutation request and last at most two minutes.
-- Neither token can outlive its parent credential; a write token cannot outlive its read session.
-- Your application authorizes the user, and Azimap independently enforces the API key’s scope and the actual requested operation.
-- Tokens authorize layers and operation types. They do not provide row-level or exact-payload authorization.
+- Tokens cannot outlive their parent credential. A write token cannot outlive its read session.
+- Your application checks user permissions; Azimap also enforces the API key’s scope and the actual requested operation.
+- Permissions cover layers and operation types. They do not provide row-level or exact-payload authorization.
 - Signing out prevents further token issuance. Already-issued credentials remain usable until expiry or key revocation, subject to their restrictions.
-- Failed or uncertain writes are not automatically replayed.
+- Token responses must not be cached, and credentials must not be logged.
 
-Do not log credentials or cache token responses.
+Check current permissions on every acquisition. Permissions copied into a login session can become stale.
 
-## Azimap deployment requirements
+## Handling failed writes
 
-Deploy compatible GeoAppCore, APICore and browser-library versions before enabling `EmbedSessions:Enabled`.
+Failed or uncertain writes are not automatically replayed.
 
-Write-token replay protection supports:
+A write token remains consumed even if subsequent processing fails. If a request times out or its outcome is unclear, inspect the result before deliberately submitting another edit.
 
-- **Shared Redis:** the default for cloud deployments, multiple API instances and separate mutation-serving roles.
-- **Explicit single-instance mode:** for one combined API process and GeoAppCore on the same machine. An exclusive local lock prevents overlapping API owners, and an API restart invalidates earlier write tokens.
+## Integration checklist
 
-Replay protection is configured within Azimap. The customer’s frontend integration remains the same.
+Before making your integration available to users, verify:
 
-## Testing your integration
-
-Before deployment, verify:
-
-- Authentication and CSRF enforcement.
-- Allowed and denied map/layer operations.
-- Permission changes taking effect on subsequent token requests.
-- Read-session renewal and expiry.
-- Rejection of reused write tokens.
-- Logout and parent-key revocation behavior.
+- Unauthenticated users cannot obtain sessions or write tokens.
+- CSRF protection is enforced.
+- Users can access only their permitted maps and layers.
+- Allowed edits succeed and denied operations fail.
+- Permission changes affect subsequent token requests.
+- Session renewal and logout behave correctly.
+- API-key revocation prevents further authorized access.
 
 Use a designated test map and layer when exercising mutations.
 
 ## Compatibility
 
-The adapters implement a shared HTTP contract, so other backend languages can integrate using the same flow.
+All adapters implement the same HTTP contract and use the same browser helper:
 
-The Python adapter targets WSGI applications. ASGI applications require an appropriate framework bridge.
+```javascript
+auth: Azimap.customerBackend('/azimap')
+```
 
-Check the release notes for compatible Azimap API and browser-library versions before upgrading.
+Other backend languages can implement this contract using the documented session and write-token endpoints. Review release notes before updating your adapter or integration.
