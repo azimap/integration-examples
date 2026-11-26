@@ -1,0 +1,14 @@
+**/bin/
+**/obj/
+**/TestResults/
+**/node_modules/
+**/__pycache__/
+*.py[cod]
+**/appsettings.Local.json
+**/appsettings.*.Local.json
+.env
+.env.*
+!.env.example
+*.log
+.vs/
+.vscode/

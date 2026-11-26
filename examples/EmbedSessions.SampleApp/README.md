@@ -1,7 +1,8 @@
 # Runnable Azimap Cloud sample
 
-This .NET 10 web app hosts a native Azimap JavaScript map and uses its own cookie
-login. Users sign in to this application; they do not need an Azimap account.
+This .NET 10 web app uses its own cookie login to host an Azimap JavaScript map
+and an optional dashboard. Users sign in to this application and do not need an
+Azimap account.
 ASP.NET Core is only this sample's implementation. The [integration guide](../../README.md)
 and Node/Python adapters support other customer backends.
 
@@ -10,6 +11,8 @@ and Node/Python adapters support other customer backends.
 Create or select an Azimap Cloud API key restricted to your map, layers and
 required operations. Allow the sample browser origin (`http://localhost:5098`)
 and your backend's observed egress IP in the key's whitelist.
+Confirm that the Azimap deployment has session issuance enabled. The Cloud
+loader can be available when the issuer still returns HTTP 404.
 
 Copy `appsettings.example.json` to `appsettings.Local.json` beside the project.
 Replace `ApiKey`, `MapId`, `LayerIds` and the sample password with your values.
@@ -32,6 +35,16 @@ The sample defaults to viewing only. To try editing, use a designated test layer
 set `Sample:AllowEditing` to `true`, and ensure your key and map permit the desired
 operations. Export is independently opt-in. Restart the sample after changing
 configuration, then sign out and sign back in to refresh its grants.
+
+## Try a dashboard
+
+Use Azimap 11.3.1 or later. Set `Azimap:DashboardId` to the ID of a saved
+dashboard whose parent map is the configured `Azimap:MapId`. Include the
+layers its widgets need in `Azimap:LayerIds` and grant your key read access to
+those layers. Restart the app and sign in again. Select **Open dashboard** to
+open it in a new tab, then use **Renew session** to exercise the provider.
+The dashboard session stays read-only even when the map sample allows editing
+or export. See the [dashboard integration guide](../EmbedSessions.AspNetCore/Dashboard.md).
 
 ## What the sample demonstrates
 
@@ -60,7 +73,8 @@ dotnet test ../EmbedSessions.SampleApp.Tests/EmbedSessions.SampleApp.Tests.cspro
 ```
 
 Tests use a fake issuer and synthetic credentials. They cover authentication,
-CSRF, trusted grants, upstream failures, write-token acquisition, logout and
-integration with MVC. They do not modify Cloud map data or replace testing your
+CSRF, trusted grants, upstream failures, write-token acquisition, dashboard
+session acquisition and renewal, logout and integration with MVC. They do not
+modify Cloud map data or replace testing your
 actual map and application policy. Sample HTML, CSS and JavaScript are served
 directly from `wwwroot` and require no asset build.

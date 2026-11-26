@@ -40,6 +40,8 @@
 <li>Failed renewal suspends interaction and retains unsaved edits. Resolve unsaved work before reloading after a permission change.</li>
 <li>Signing out closes this map and prevents further issuance. Already-issued tokens elsewhere can remain usable until expiry or parent-key revocation.</li>
 </ul>
+<h2>Try a renewable dashboard</h2>
+<p>Use Azimap 11.3.1 or later with embed session issuance enabled. Set <code>Azimap:DashboardId</code> to a saved dashboard on the configured map. Include the layers its widgets need in <code>Azimap:LayerIds</code>, restart the app, and sign in again. Select <strong>Open dashboard</strong> to open the read-only dashboard in a new tab. The dashboard renews through <code>POST /azimap/dashboards/{dashboardId}/session</code> and supports the same <strong>Renew session</strong> button.</p>
 <h2>Connect your own authentication</h2>
 <p>Use your existing login and live permission service. The sample's one-account login and fixed claims demonstrate the flow; they do not track subsequent permission changes. Check current permission on every issuance, including every layer and operation in a write request. Layer scope does not provide record-level authorization.</p>
 <p>The adapters expose authenticated <code>GET /azimap/csrf</code>, <code>POST /azimap/maps/{mapId}/session</code> and <code>POST /azimap/maps/{mapId}/write-token</code> in your application. Both POSTs require <code>X-CSRF-Token</code>. Initialize the map with <code>auth: Azimap.customerBackend('/azimap')</code> to handle CSRF, session renewal and supported write-token acquisition.</p>
@@ -49,7 +51,7 @@
 <li><strong>Runtime failed to load:</strong> check access to <code>https://app.azimap.com/azimap-runtime/</code> and the browser console for blocked scripts or network requests.</li>
 <li><strong>401:</strong> sign in again; if it persists, check the server-held API key.</li>
 <li><strong>403:</strong> check user permissions, key grants, map/layer IDs, browser origin and backend egress IP.</li>
-<li><strong>404:</strong> verify the issuer URL and availability of the embed session service for your Cloud integration.</li>
+<li><strong>404:</strong> verify the issuer URL and ask your Azimap team whether session issuance is enabled. The public loader can work while the issuer is disabled.</li>
 <li><strong>429:</strong> wait before trying again; login and issuance have rate limits.</li>
 <li><strong>503 or network error:</strong> check connectivity to Azimap Cloud. Do not automatically resubmit an uncertain save.</li>
 </ul>

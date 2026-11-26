@@ -1,12 +1,14 @@
 # Customer backend adapter
 
 This .NET 10 library adds authenticated session and write-token endpoints to an
-existing ASP.NET Core application. For a runnable login and map, see
+existing ASP.NET Core application. For a runnable login, map and dashboard, see
 [the sample app](../EmbedSessions.SampleApp/README.md). A
 [Node adapter](../EmbedSessions.Node/README.md) and
 [Python adapter](../EmbedSessions.Python/README.md) implement the same HTTP contract.
 Users sign in to the containing application and need no Azimap account.
 For ASP.NET Core MVC, use this same adapter with the [MVC integration guide](MVC.md).
+Configure the optional dashboard authorization callback using the
+[renewable dashboard guide](Dashboard.md).
 
 Reference this project and import `Azimap.CustomerExample`:
 
