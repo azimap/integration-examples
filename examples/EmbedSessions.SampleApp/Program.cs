@@ -31,20 +31,33 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         };
     });
 builder.Services.AddAuthorization();
-builder.Services.AddAzimapCustomerBackend(options => options.AuthorizeAsync = (context, mapId, operations, cancellationToken) =>
+builder.Services.AddAzimapCustomerBackend(options =>
 {
-    var map = mapId.ToString(CultureInfo.InvariantCulture);
-    var user = context.User;
-    if (!user.HasClaim("azimap-map", map)) return Task.FromResult<CustomerMapGrant?>(null);
-    var layers = user.FindAll("azimap-layer").Select(claim => claim.Value.Split(':'))
-        .Where(parts => parts.Length == 2 && parts[0] == map)
-        .Select(parts => int.TryParse(parts[1], out var id) ? id : 0).Where(id => id > 0).Distinct().ToArray();
-    var editable = user.HasClaim("azimap-edit-map", map);
-    if (operations.Count > 0 && (!editable || operations.Any(x => !layers.Contains(x.LayerId))))
-        return Task.FromResult<CustomerMapGrant?>(null);
-    // This single-user sample uses trusted claims. Real apps can query live permissions here.
-    return Task.FromResult<CustomerMapGrant?>(new CustomerMapGrant(mapId, layers, editable,
-        user.HasClaim("azimap-export-map", map), user.FindFirstValue(ClaimTypes.NameIdentifier)!));
+    options.AuthorizeAsync = (context, mapId, operations, cancellationToken) =>
+    {
+        var map = mapId.ToString(CultureInfo.InvariantCulture);
+        var user = context.User;
+        if (!user.HasClaim("azimap-map", map)) return Task.FromResult<CustomerMapGrant?>(null);
+        var layers = user.FindAll("azimap-layer").Select(claim => claim.Value.Split(':'))
+            .Where(parts => parts.Length == 2 && parts[0] == map)
+            .Select(parts => int.TryParse(parts[1], out var id) ? id : 0).Where(id => id > 0).Distinct().ToArray();
+        var editable = user.HasClaim("azimap-edit-map", map);
+        if (operations.Count > 0 && (!editable || operations.Any(x => !layers.Contains(x.LayerId))))
+            return Task.FromResult<CustomerMapGrant?>(null);
+        // This single-user sample uses trusted claims. Query live permissions in your app.
+        return Task.FromResult<CustomerMapGrant?>(new CustomerMapGrant(mapId, layers, editable,
+            user.HasClaim("azimap-export-map", map), user.FindFirstValue(ClaimTypes.NameIdentifier)!));
+    };
+    options.AuthorizeDashboardAsync = (context, dashboardId, cancellationToken) =>
+    {
+        var azimap = context.RequestServices.GetRequiredService<IConfiguration>().GetSection("Azimap").Get<AzimapSettings>();
+        var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (azimap?.DashboardId != dashboardId || userId == null
+            || !context.User.HasClaim("azimap-dashboard", dashboardId.ToString(CultureInfo.InvariantCulture)))
+            return Task.FromResult<CustomerDashboardGrant?>(null);
+        return Task.FromResult<CustomerDashboardGrant?>(new CustomerDashboardGrant(
+            dashboardId, azimap.MapId, azimap.LayerIds, userId));
+    };
 });
 builder.Services.AddRateLimiter(options =>
 {
@@ -85,6 +98,9 @@ app.MapGet("/api/bootstrap", (HttpContext context, IAntiforgery antiforgery) =>
         missingSettings = missing,
         csrfToken = antiforgery.GetAndStoreTokens(context).RequestToken,
         username = authenticated ? context.User.Identity!.Name : null,
+        dashboardId = authenticated && settings.Azimap.DashboardId > 0
+            && context.User.HasClaim("azimap-dashboard", settings.Azimap.DashboardId.ToString(CultureInfo.InvariantCulture))
+            ? (int?)settings.Azimap.DashboardId : null,
         map = authenticated ? new
         {
             mapId = settings.Azimap.MapId,
@@ -120,6 +136,8 @@ app.MapPost("/api/login", async (LoginRequest request, HttpContext context, IAnt
     claims.AddRange(settings.Azimap.LayerIds.Select(id => new Claim("azimap-layer", $"{mapId}:{id}")));
     if (settings.Sample.AllowEditing) claims.Add(new Claim("azimap-edit-map", mapId));
     if (settings.Sample.AllowExport) claims.Add(new Claim("azimap-export-map", mapId));
+    if (settings.Azimap.DashboardId > 0)
+        claims.Add(new Claim("azimap-dashboard", settings.Azimap.DashboardId.ToString(CultureInfo.InvariantCulture)));
     await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
         new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)));
     return Results.NoContent();
@@ -149,6 +167,7 @@ public sealed class SampleSettings
         var errors = new List<string>();
         if (string.IsNullOrWhiteSpace(Azimap.ApiKey)) errors.Add("Azimap:ApiKey");
         if (Azimap.MapId <= 0) errors.Add("Azimap:MapId (positive integer)");
+        if (Azimap.DashboardId < 0) errors.Add("Azimap:DashboardId (zero or positive integer)");
         if (Azimap.LayerIds.Length == 0 || Azimap.LayerIds.Any(id => id <= 0)) errors.Add("Azimap:LayerIds (positive integers)");
         if (!ValidUrl(Azimap.IssuerBaseUrl)) errors.Add("Azimap:IssuerBaseUrl");
         if (!ValidUrl(Azimap.ApiBaseUrl)) errors.Add("Azimap:ApiBaseUrl");
@@ -168,6 +187,7 @@ public sealed class AzimapSettings
 {
     public string ApiKey { get; set; } = "";
     public int MapId { get; set; }
+    public int DashboardId { get; set; }
     public int[] LayerIds { get; set; } = [];
     public string IssuerBaseUrl { get; set; } = "https://app.azimap.com/";
     public string ApiBaseUrl { get; set; } = "https://api.azimap.com/";

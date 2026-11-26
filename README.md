@@ -11,7 +11,8 @@ This repository provides backend adapters, integration guides and a sample appli
 | ASP.NET Core / MVC | .NET 10 adapter with MVC and Razor integration guidance |
 | Node.js | Adapter using your existing authentication and CSRF services |
 | Python | Dependency-free, synchronous WSGI adapter |
-| Sample application | Demonstrates login, map loading, session renewal and editing authorization |
+| Sample application | [Runnable .NET app for login, maps and dashboards](examples/EmbedSessions.SampleApp/README.md) |
+| Renewable dashboards | [Read-only dashboard sessions with the .NET adapter and a portable HTTP contract](examples/EmbedSessions.AspNetCore/Dashboard.md) |
 
 ASP.NET Core MVC uses the same .NET adapter. Classic ASP.NET MVC 5 / System.Web requires a separate integration.
 
@@ -36,6 +37,14 @@ Your backend handles authorization requests. Map data flows directly between the
 | API | `https://api.azimap.com/` |
 | Tiles and layer content | `https://tiles.azimap.com/` |
 | Embed assets | `https://app.azimap.com/azimap-runtime/` |
+
+Confirm that your Azimap deployment has enabled session issuance before setup.
+The issuer can return HTTP 404 even when the loader URL works. For managed Cloud,
+confirm availability with your Azimap team. For self-hosted deployments, update
+GeoAppCore, all API and layer-content roles, and the embed runtime before setting
+`EmbedSessions:Enabled=true` on GeoAppCore. Editing also requires the deployment's
+single-use replay protection. Renewable dashboard sessions require Azimap 11.3.1
+or later.
 
 ## Getting started
 
@@ -211,10 +220,12 @@ Use a designated test map and layer when exercising mutations.
 
 ## Compatibility
 
-All adapters implement the same HTTP contract and use the same browser helper:
+All map adapters implement the same HTTP contract and use the same browser helper:
 
 ```javascript
 auth: Azimap.customerBackend('/azimap')
 ```
+
+For dashboard sessions, use a separate authorization route and `Azimap.initDashboard({ sessionProvider })`. See the [renewable dashboard guide](examples/EmbedSessions.AspNetCore/Dashboard.md).
 
 Other backend languages can implement this contract using the documented session and write-token endpoints. Review release notes before updating your adapter or integration.

@@ -12,12 +12,12 @@
     <main>
         <section id="setup" class="card" hidden>
             <p class="eyebrow">GET STARTED</p><h1>Connect your Azimap map</h1>
-            <p>This app demonstrates your own login and a native JavaScript map. Configure these server settings, then restart the app:</p>
+            <p>This sample uses your own login to embed Azimap maps and dashboards. Configure these server settings, then restart the app.</p>
             <ul id="missing-settings"></ul>
             <a class="button" href="/help.html">Open setup guide</a>
         </section>
         <section id="login" class="card" hidden>
-            <p class="eyebrow">YOUR APPLICATION</p><h1>Sign in to view your map</h1>
+            <p class="eyebrow">YOUR APPLICATION</p><h1>Sign in to the sample</h1>
             <p>Use the sample account configured on this server. No Azimap user login is required.</p>
             <form id="login-form">
                 <label for="username">Username</label><input id="username" name="username" autocomplete="username" required>
@@ -27,11 +27,17 @@
         </section>
         <section id="workspace" hidden>
             <div class="map-heading"><div><p class="eyebrow" id="signed-in-as"></p><h1 id="map-title">Your map</h1></div>
-                <div class="actions"><button id="load-map" type="button">Load map</button><button id="renew" type="button" disabled>Renew session</button><button id="logout" type="button" class="secondary">Sign out</button></div>
+                <div class="actions">
+                    <a id="open-dashboard" class="button" href="/?view=dashboard" target="_blank" rel="noopener" hidden>Open dashboard</a>
+                    <a id="open-map" class="button" href="/" target="_blank" rel="noopener" hidden>Open map</a>
+                    <button id="load-embed" type="button">Load map</button>
+                    <button id="renew" type="button" disabled>Renew session</button>
+                    <button id="logout" type="button" class="secondary">Sign out</button>
+                </div>
             </div>
             <p id="session-status" role="status">Ready to load.</p>
             <div id="azimap-map" aria-label="Embedded Azimap map"></div>
-            <p class="hint">Permissions are set by this app's server and limited by the Azimap API key. Sessions renew automatically. Signing out removes this map; existing sessions elsewhere last until expiry or key revocation.</p>
+            <p class="hint">Permissions come from this app and the Azimap API key. Sessions renew automatically. Signing out closes this view. Sessions in other tabs can last until expiry or key revocation.</p>
         </section>
         <p id="message" role="alert" hidden></p>
     </main>
